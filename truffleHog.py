@@ -173,8 +173,8 @@ def find_strings(git_url, reponame):
                             print e
 
                         if args.log_dir:
-                            newdir(os.path.join(args.log_dir, '%s+%s' % (args.github_user, reponame)))
-                            logfile = open(os.path.join(args.log_dir, '%s+%s' % (args.github_user, reponame), '%s-truffleHog.log' % prev_commit.name_rev.replace(' ','_').replace('\\','_').replace('/','_')), 'w+')
+                            newdir(os.path.join(args.log_dir, '%s+%s' % (name, reponame)))
+                            logfile = open(os.path.join(args.log_dir, '%s+%s' % (name, reponame), '%s-truffleHog.log' % prev_commit.name_rev.replace(' ','_').replace('\\','_').replace('/','_')), 'w+')
                             logfile.write("Date: " + commit_time + "\n")
                             logfile.write("Branch: " + branch_name + "\n")
                             logfile.write("Commit: " + prev_commit.message + "\n")
@@ -194,6 +194,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Find secrets hidden in the depths of git.')
     parser.add_argument('git_url', type=str, nargs='?', default=None, help='URL for secret searching')
     parser.add_argument('--github-user', '-u', type=str, help='Github user e.g. \'dxa4481\'')
+    parser.add_argument('--github-org', '-o', type=str, help='Github Organization e.g. \'MyCompany\'')
     parser.add_argument('--log-dir', '-l', type=str, nargs='?', help='Log results to specified directory')
     parser.add_argument('--github-access', '-a', type=str, default='.', help='Log results to specified directory')
     parser.add_argument('--ignore-forks', '-i', action='store_true', help='Don\'t check forked repos')
@@ -208,7 +209,7 @@ if __name__ == "__main__":
 
         print "Logging to %s" % args.log_dir
 
-    if args.github_user:
+    if args.github_user or args.github_org:
         if args.github_access:
             g = Github(args.github_access)
         else:
@@ -216,7 +217,12 @@ if __name__ == "__main__":
 
         if g:
             try:
-                repos = g.get_user(args.github_user).get_repos()
+                if args.github_org:
+                    name = args.github_org
+                    repos = g.get_organization(name).get_repos()
+                else:
+                    name = args.github_user
+                    repos = g.get_user(name).get_repos()
 
                 for repo in repos:
                     countrepos = countrepos + 1
@@ -232,11 +238,11 @@ if __name__ == "__main__":
                 procrepos = 0
 
                 print "\nRepositories in %s: %d (forks: %d%s)" % (
-                args.github_user, countrepos, countforks, ignoringforks)
+                name, countrepos, countforks, ignoringforks)
 
                 for repo in repos:
                     if not (repo.fork and args.ignore_forks):
-                        find_strings("https://www.github.com/%s/%s.git" % (args.github_user, repo.name), repo.name)
+                        find_strings("https://%s@github.com/%s/%s.git" % (args.github_access, name, repo.name), repo.name)
 
             except GithubException as e:
                 print '\nGithub API Error: %s' % e.data['message']
